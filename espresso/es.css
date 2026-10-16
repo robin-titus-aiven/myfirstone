@@ -1,0 +1,31 @@
+.es-stage{position:relative;touch-action:pan-y;outline:none}
+.es-stage>svg,.es-stage>canvas{display:block;width:100%;height:auto}
+.es-stage>.es-layer{position:absolute;inset:0;height:100%!important;pointer-events:none}
+.es-pipe-o{fill:none;stroke:var(--anatomy-mid);stroke-linecap:round;stroke-linejoin:round}
+.es-pipe-o[data-tone="lo"]{stroke:var(--anatomy-lo)}
+.es-pipe-i{fill:none;stroke:var(--anatomy-paper);stroke-linecap:round;stroke-linejoin:round}
+.es-pipe-f{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:3 7;opacity:0}
+.es-pipe-f[data-flow="cold"]{stroke:var(--anatomy-blue)}
+.es-pipe-f[data-flow="hot"]{stroke:var(--anatomy-red)}
+.es-pipe-f[data-flow="warm"]{stroke:#e8a24a}
+.es-pipe-f[data-flow="steam"]{stroke:var(--anatomy-muted)}
+.es-water{fill:none;stroke:var(--anatomy-blue);stroke-width:2.2;stroke-linecap:round}
+.es-cupin{fill:var(--anatomy-shade-0);stroke:var(--anatomy-lo);stroke-width:.6}
+.es-ui{margin:18px 0 0;display:grid;gap:12px;font-size:13px;color:var(--anatomy-text)}
+.es-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.es-look{display:flex;gap:10px;align-items:center;font-family:var(--anatomy-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--anatomy-muted)}
+.es-look input{width:160px;accent-color:var(--anatomy-strong)}
+.es-ui button{font:inherit;font-size:12px;color:var(--anatomy-text);background:transparent;border:1px solid var(--anatomy-faint);border-radius:999px;padding:5px 12px;cursor:pointer}
+.es-ui button:hover{border-color:var(--anatomy-mid);color:var(--anatomy-strong)}
+.es-ui button[aria-pressed="true"]{border-color:var(--anatomy-strong);color:var(--anatomy-strong)}
+.es-note{margin:0;min-height:3.2em;line-height:1.5;max-width:60ch}
+.es-parts{display:flex;flex-wrap:wrap;gap:6px}
+.es-stage[data-focus] [data-part]:not([data-on]){opacity:.22;transition:opacity .25s}
+.es-stage [data-part]{transition:opacity .25s}
+.es-front{pointer-events:none}
+.es-front [data-part],.es-front [data-shell]{pointer-events:visiblePainted}
+.es-pipe-f{animation:es-flow 1.2s linear infinite}
+@keyframes es-flow{to{stroke-dashoffset:-20}}
+@media (prefers-reduced-motion:reduce){.es-pipe-f{animation:none}}
+.es-sect{fill:var(--anatomy-shade-1);stroke:none}
+.es-stage[data-gl] .es-fallback{display:none}
