@@ -247,11 +247,12 @@ canvas.addEventListener("dblclick", () => { az = baseAz; userT = 0; });
 
 // ---------- data flow ----------
 // Neutral dashed guides link tiles; a tiny dot travels along them and leaves a trace that fades. Vertical channels join each
-// cloud tile to its service and each service to the runtime tile(s) above it (service colour going
-// up, Aiven Green coming down). Horizontal channels join neighbouring services on the data layer,
-// in the source service's colour. Drawn x-ray (no depth test), beneath the labels.
+// cloud tile to its service and each service to the runtime tile(s) above it. Horizontal channels
+// join neighbouring services on the data layer. Everything is neutral grey. Drawn x-ray
+// (no depth test), beneath the labels.
 const flow = new THREE.Group();
 scene.add(flow);
+const FLOW_GREY = 0x9aa1af;               // flow stays neutral so it never competes with the layers
 const FLOW_T = 4.6;                       // seconds per cycle
 const HEAD = 0.13, TRAIL_PX = 1.5;       // dot size (world) and trail thickness (px)
 const TAIL = 1.7;                        // longest visible trace behind the dot (world)
@@ -298,7 +299,7 @@ function channel(a, b, color, phase, back) {
     new THREE.LineDashedMaterial({ color: C.borderStrong, dashSize: 0.14, gapSize: 0.14, depthTest: false }));
   guide.renderOrder = 1;
   flow.add(guide);
-  channels.push({ a, b, guide, phase, ends: [dot(C.borderStrong), dot(C.borderStrong)], fwd: streak(color), back: back ? streak(C.green) : null });
+  channels.push({ a, b, guide, phase, ends: [dot(C.borderStrong), dot(C.borderStrong)], fwd: streak(FLOW_GREY), back: back ? streak(FLOW_GREY) : null });
 }
 const vert = (x, z, yLo, yHi) => [(o) => o.set(x, yLo(), z), (o) => o.set(x, yHi(), z)];
 
@@ -348,7 +349,7 @@ function runStreak(f, g, from, to) {
   trail.position.copy(from).addScaledVector(D, tailAt);
   trail.quaternion.setFromUnitVectors(X, D);
   trail.scale.set(len, 1, 1);
-  trail.material.opacity = moving ? 0.5 * Math.min(1, u * 8) : 0.5 * (1 - smooth((g - TRAVEL) / FADE));
+  trail.material.opacity = moving ? 0.3 * Math.min(1, u * 8) : 0.3 * (1 - smooth((g - TRAVEL) / FADE));
 }
 function updateFlow(sec) {
   for (const c of channels) {
