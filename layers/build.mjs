@@ -26,9 +26,22 @@ writeFileSync(join(HERE, "layers.html"), `<!doctype html>
   html,body{margin:0;height:100%;background:#05080F;overflow:hidden}
   canvas{display:block;width:100vw;height:100vh;cursor:grab;touch-action:none}
   canvas:active{cursor:grabbing}
+  .panel{position:fixed;right:20px;bottom:20px;width:260px;padding:16px 18px;background:#0B0F1A;border:1px solid #1F2430;border-radius:4px;font:12px "Geist Mono",ui-monospace,monospace;color:#9AA1AF;text-transform:uppercase;letter-spacing:.06em}
+  .panel h2{margin:0 0 14px;font:inherit;color:#fff}
+  .row{display:flex;justify-content:space-between;margin:12px 0 6px}
+  .row b{font-weight:400;color:#5FFA74}
+  input[type=range]{width:100%;margin:0;accent-color:#5FFA74;cursor:pointer}
+  button{margin-top:16px;width:100%;padding:8px;background:transparent;color:#5FFA74;border:1px solid #5FFA74;border-radius:4px;font:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}
+  button:hover{background:#5FFA74;color:#05080F}
   .hint{position:fixed;left:16px;bottom:12px;font:12px ui-monospace,Menlo,monospace;color:#9AA1AF}
 </style></head>
-<body><canvas id="c"></canvas><div class="hint">drag to rotate · double-click to reset</div>
+<body><canvas id="c"></canvas>
+<div class="panel"><h2>Layer spacing</h2>
+  <div class="row"><span>Runtime ↔ Data</span><b id="gap-top-v">3.0</b></div>
+  <input id="gap-top" type="range" min="0.6" max="7" step="0.1" value="3">
+  <div class="row"><span>Data ↔ Cloud</span><b id="gap-bottom-v">2.9</b></div>
+  <input id="gap-bottom" type="range" min="0.6" max="7" step="0.1" value="2.9">
+  <button id="reset">Reset</button></div><div class="hint">drag to rotate · double-click to reset</div>
 <script type="module">${js}</script></body></html>
 `);
 console.log("wrote layers.html");

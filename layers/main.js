@@ -192,6 +192,19 @@ for (const [x, z, lines] of [[-q, -q, ["MCP", "SERVER"]], [-q, q, ["AIVEN", "RUN
   top.add(anchor(textSprite(lines, hex(C.green), { size: lines[0].length > 9 ? 60 : 74 }), x, TOP_Y + 0.1, z));
 }
 
+// ---------- controls: distance between layers ----------
+let gapTop = TOP_Y, gapBottom = -DROP_Y;   // layer 1 -> 2, layer 2 -> 3
+const sliders = [
+  ["gap-top", (v) => (gapTop = v), TOP_Y],
+  ["gap-bottom", (v) => (gapBottom = v), -DROP_Y],
+];
+for (const [id, set, def] of sliders) {
+  const el = document.getElementById(id), out = document.getElementById(id + "-v");
+  const apply = () => { set(+el.value); out.textContent = (+el.value).toFixed(1); resize(); };
+  el.addEventListener("input", apply);
+  document.getElementById("reset").addEventListener("click", () => { el.value = def; apply(); });
+}
+
 // ---------- view ----------
 let az = Math.PI / 4, azTarget = az, baseAz = az, userT = 0, drag = null;
 const camDist = 30;
@@ -200,13 +213,14 @@ function place() {
   const sway = userT > 0 ? 0 : Math.sin(performance.now() / 2600) * 0.07;
   const a = az + sway;
   camera.position.set(Math.sin(a) * Math.cos(ELEV) * camDist, Math.sin(ELEV) * camDist, Math.cos(a) * Math.cos(ELEV) * camDist);
-  camera.lookAt(0, -0.1, 0);
+  camera.lookAt(0, -0.1 + ((gapTop - TOP_Y) + (-gapBottom - DROP_Y)) / 2, 0);
 }
 
 function resize() {
   const w = innerWidth, hgt = innerHeight;
   renderer.setSize(w, hgt, false);
-  const viewH = 14.2, viewW = 18.0;
+  const spread = Math.max(0, gapTop - TOP_Y) + Math.max(0, gapBottom + DROP_Y);
+  const viewH = 14.2 + spread * 0.95, viewW = 18.0 + spread * 0.2;
   const asp = w / hgt;
   let vh = viewH, vw = viewH * asp;
   if (vw < viewW) { vw = viewW; vh = viewW / asp; }
@@ -224,8 +238,8 @@ canvas.addEventListener("dblclick", () => { az = baseAz; userT = 0; });
 // layers breathe apart a little
 function tick(t) {
   const s = t / 1000;
-  top.position.y = Math.sin(s * 1.1) * 0.08;
-  cloud.position.y = Math.sin(s * 1.1 + 2) * 0.06;
+  top.position.y = gapTop - TOP_Y;
+  cloud.position.y = -gapBottom - DROP_Y;
   place();
   const dir = camera.position.clone().normalize();
   for (const sp of sprites) {
