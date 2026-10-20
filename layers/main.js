@@ -96,6 +96,7 @@ function spriteFrom(c, w, h) {
   tex.anisotropy = 8;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
   s.scale.set(w, h, 1);
+  s.renderOrder = 3;   // labels sit above the data-flow layer
   return s;
 }
 function textSprite(lines, color, { size = 62, w = 4.4, spacing = 3 } = {}) {
@@ -239,12 +240,95 @@ canvas.addEventListener("pointermove", (e) => { if (drag) az = drag.az - (e.clie
 canvas.addEventListener("pointerup", () => { drag = null; });
 canvas.addEventListener("dblclick", () => { az = baseAz; userT = 0; });
 
-// layers breathe apart a little
+// ---------- data flow ----------
+// Vertical channels link each cloud tile to its service, and each service to the runtime tile(s)
+// above it. Dashed guides stay neutral; packets carry the service colour going up and Aiven Green
+// coming down. Everything is drawn x-ray (no depth test) beneath the labels.
+const flow = new THREE.Group();
+scene.add(flow);
+const FLOW_T = 4.6;                       // seconds per cycle
+const dotTex = (() => {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff";
+  g.beginPath(); g.arc(32, 32, 28, 0, Math.PI * 2); g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+function dot(color, order) {
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color, depthTest: false, depthWrite: false, transparent: true }));
+  m.renderOrder = order;
+  flow.add(m);
+  return m;
+}
+const named = SERVICES.filter((r) => r[2]);
+const channels = [];
+function channel(x, z, lower, upper, color, phase, both) {
+  const guide = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+    new THREE.LineDashedMaterial({ color: C.borderStrong, dashSize: 0.14, gapSize: 0.14, depthTest: false }));
+  guide.renderOrder = 1;
+  flow.add(guide);
+  channels.push({
+    x, z, lower, upper, guide, phase, both,
+    ends: [dot(C.borderStrong, 1), dot(C.borderStrong, 1)],
+    up: dot(color, 2), down: both ? dot(C.green, 2) : null,
+  });
+}
+// cloud -> service (same grid cell)
+named.forEach(([i, j, , col], n) => {
+  if (!(j === 0 || i === 2)) return;                     // the five cells that have a provider tile
+  const [x, z] = cell(i, j);
+  channel(x, z, () => -gapBottom + 0.08, () => 0.08, col, n / 7, false);
+});
+// service -> runtime tile (centre of the overlap of their footprints)
+const RT = [[-q, -q], [-q, q], [q, -q]];
+named.forEach(([i, j, , col], n) => {
+  const [cx, cz] = cell(i, j);
+  for (const [rx, rz] of RT) {
+    const x0 = Math.max(cx - 1.35, rx - ts / 2), x1 = Math.min(cx + 1.35, rx + ts / 2);
+    const z0 = Math.max(cz - 1.35, rz - ts / 2), z1 = Math.min(cz + 1.35, rz + ts / 2);
+    if (x1 - x0 > 0.5 && z1 - z0 > 0.5) channel((x0 + x1) / 2, (z0 + z1) / 2, () => 0.08, () => gapTop + 0.1, col, (n + 3) / 7, true);
+  }
+});
+const smooth = (u) => u * u * (3 - 2 * u);
+const pop = (u) => smooth(Math.min(1, u * 6, (1 - u) * 6));   // grow in, shrink out
+function packet(sp, u, y0, y1, x, z) {
+  if (u < 0 || u > 1) { sp.visible = false; return; }
+  const e = smooth(u), k = pop(u);
+  sp.visible = k > 0.01;
+  sp.position.set(x, y0 + (y1 - y0) * e, z);
+  sp.scale.setScalar(0.17 * k);
+}
+function updateFlow(sec) {
+  for (const c of channels) {
+    const a = c.lower(), b = c.upper();
+    const pos = c.guide.geometry.attributes.position;
+    pos.setXYZ(0, c.x, a, c.z); pos.setXYZ(1, c.x, b, c.z); pos.needsUpdate = true;
+    c.guide.computeLineDistances();
+    c.ends[0].position.set(c.x, a, c.z); c.ends[1].position.set(c.x, b, c.z);
+    for (const e of c.ends) e.scale.setScalar(0.12);
+    const ph = (sec / FLOW_T + c.phase) % 1;
+    packet(c.up, ph / 0.62, a, b, c.x, c.z);                       // rising: service colour
+    if (c.down) packet(c.down, ((ph + 0.5) % 1) / 0.62, b, a, c.x, c.z);   // falling: Aiven Green
+  }
+}
+
+// toggle (off when the viewer prefers reduced motion)
+const flowToggle = document.getElementById("flow");
+flowToggle.checked = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+const syncFlow = () => { flow.visible = flowToggle.checked; };
+flowToggle.addEventListener("change", syncFlow);
+addEventListener("keydown", (e) => { if (e.key === "f" || e.key === "F") { flowToggle.checked = !flowToggle.checked; syncFlow(); } });
+syncFlow();
+
 function tick(t) {
   const s = t / 1000;
   top.position.y = gapTop - TOP_Y;
   cloud.position.y = -gapBottom - DROP_Y;
   place();
+  if (flow.visible) updateFlow(s);
   const dir = camera.position.clone().normalize();
   for (const sp of sprites) {
     sp.position.copy(sp.userData.p).addScaledVector(dir, sp.userData.lift);

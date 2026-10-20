@@ -33,10 +33,19 @@ writeFileSync(join(HERE, "layers.html"), `<!doctype html>
   input[type=range]{width:100%;margin:0;accent-color:#5FFA74;cursor:pointer}
   button{margin-top:16px;width:100%;padding:8px;background:transparent;color:#5FFA74;border:1px solid #5FFA74;border-radius:4px;font:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}
   button:hover{background:#5FFA74;color:#05080F}
+  .switch{display:flex;justify-content:space-between;align-items:center;margin:0 0 4px;cursor:pointer}
+  .switch input{position:absolute;opacity:0}
+  .switch i{width:34px;height:18px;border-radius:9px;background:#1F2430;position:relative;transition:background .15s}
+  .switch i::after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#9AA1AF;transition:transform .15s,background .15s}
+  .switch input:checked+i{background:#5FFA74}
+  .switch input:checked+i::after{transform:translateX(16px);background:#05080F}
+  .switch input:focus-visible+i{outline:2px solid #5FFA74;outline-offset:2px}
   .hint{position:fixed;left:16px;bottom:12px;font:12px ui-monospace,Menlo,monospace;color:#9AA1AF}
 </style></head>
 <body><canvas id="c"></canvas>
-<div class="panel"><h2>Layer spacing</h2>
+<div class="panel">
+  <label class="switch"><span>Data flow <small>(F)</small></span><input id="flow" type="checkbox" checked><i></i></label>
+  <h2 style="margin-top:18px">Layer spacing</h2>
   <div class="row"><span>Runtime ↔ Data</span><b id="gap-top-v">3.0</b></div>
   <input id="gap-top" type="range" min="0.6" max="7" step="0.1" value="3">
   <div class="row"><span>Data ↔ Cloud</span><b id="gap-bottom-v">3.7</b></div>
