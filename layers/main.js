@@ -246,24 +246,30 @@ canvas.addEventListener("pointerup", () => { drag = null; });
 canvas.addEventListener("dblclick", () => { az = baseAz; userT = 0; });
 
 // ---------- data flow ----------
-// Neutral dashed guides link tiles; short streaks travel along them. Vertical channels join each
+// Neutral dashed guides link tiles; a tiny dot travels along them and leaves a trace that fades. Vertical channels join each
 // cloud tile to its service and each service to the runtime tile(s) above it (service colour going
 // up, Aiven Green coming down). Horizontal channels join neighbouring services on the data layer,
 // in the source service's colour. Drawn x-ray (no depth test), beneath the labels.
 const flow = new THREE.Group();
 scene.add(flow);
 const FLOW_T = 4.6;                       // seconds per cycle
-const STREAK = 0.5, STREAK_PX = 2.5;      // streak length (world) and thickness (px)
+const HEAD = 0.13, TRAIL_PX = 1.5;       // dot size (world) and trail thickness (px)
+const TAIL = 1.7;                        // longest visible trace behind the dot (world)
+const TRAVEL = 0.62, FADE = 0.3;          // share of the cycle spent travelling / fading the trace out
 const unit = new LineGeometry().setPositions([0, 0, 0, 1, 0, 0]);
 function streak(color) {
-  const m = new LineMaterial({ color, linewidth: STREAK_PX, depthTest: false, depthWrite: false, transparent: true });
+  const m = new LineMaterial({ color, linewidth: TRAIL_PX, depthTest: false, depthWrite: false, transparent: true });
   m.resolution.set(innerWidth, innerHeight);
   lineMats.push(m);
-  const l = new Line2(unit, m);
-  l.renderOrder = 2;
-  l.visible = false;
-  flow.add(l);
-  return l;
+  const trail = new Line2(unit, m);
+  trail.renderOrder = 2;
+  trail.visible = false;
+  flow.add(trail);
+  const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color, depthTest: false, depthWrite: false, transparent: true }));
+  head.renderOrder = 2;
+  head.visible = false;
+  flow.add(head);
+  return { trail, head };
 }
 function dot(color) {
   const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color, depthTest: false, depthWrite: false, transparent: true }));
@@ -324,17 +330,25 @@ LINKS.forEach(([fi, fj, ti, tj], n) => {
 const smooth = (u) => u * u * (3 - 2 * u);
 const pop = (u) => smooth(Math.min(1, u * 6, (1 - u) * 6));   // grow in, shrink out
 const A = new THREE.Vector3(), B = new THREE.Vector3(), D = new THREE.Vector3(), P = new THREE.Vector3(), X = new THREE.Vector3(1, 0, 0);
-function runStreak(l, u, from, to) {
-  if (u < 0 || u > 1) { l.visible = false; return; }
-  const k = pop(u), len = STREAK * k;
-  l.visible = len > 0.02;
+function runStreak(f, g, from, to) {
+  // g: position in this packet's cycle, 0..1. Travel first, then the trace fades out.
+  const { head, trail } = f;
+  if (g > TRAVEL + FADE) { head.visible = trail.visible = false; return; }
   D.subVectors(to, from);
   const span = D.length();
   D.divideScalar(span);
-  P.copy(from).addScaledVector(D, span * smooth(u)).addScaledVector(D, -len / 2);
-  l.position.copy(P);
-  l.quaternion.setFromUnitVectors(X, D);
-  l.scale.set(len, 1, 1);
+  const moving = g < TRAVEL, u = moving ? g / TRAVEL : 1;
+  head.visible = moving;
+  if (moving) {
+    head.position.copy(from).addScaledVector(D, span * smooth(u));
+    head.scale.setScalar(HEAD * pop(u));
+  }
+  const headAt = span * smooth(u), tailAt = Math.max(0, headAt - TAIL), len = headAt - tailAt;
+  trail.visible = len > 0.02;
+  trail.position.copy(from).addScaledVector(D, tailAt);
+  trail.quaternion.setFromUnitVectors(X, D);
+  trail.scale.set(len, 1, 1);
+  trail.material.opacity = moving ? 0.5 * Math.min(1, u * 8) : 0.5 * (1 - smooth((g - TRAVEL) / FADE));
 }
 function updateFlow(sec) {
   for (const c of channels) {
@@ -344,8 +358,8 @@ function updateFlow(sec) {
     c.guide.computeLineDistances();
     c.ends[0].position.copy(A); c.ends[1].position.copy(B);
     const ph = (sec / FLOW_T + c.phase) % 1;
-    runStreak(c.fwd, ph / 0.62, A, B);
-    if (c.back) runStreak(c.back, ((ph + 0.5) % 1) / 0.62, B, A);
+    runStreak(c.fwd, ph, A, B);
+    if (c.back) runStreak(c.back, (ph + 0.5) % 1, B, A);
   }
 }
 
