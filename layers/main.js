@@ -187,7 +187,9 @@ const LSHAPE = (t) => [[-t, -t], [t, -t], [t, 0], [0, 0], [0, t], [-t, t]];
 const LINSET = (t, w) => [[-t + w, -t + w], [t - w, -t + w], [t - w, w], [w, w], [w, t - w], [-t + w, t - w]];
 top.add(slab(LSHAPE(T), 0.45, TOP_Y, 0.42, C.borderStrong, 0x1e2536, 0.04));
 top.add(flat(LINSET(T, w0), 0.4, TOP_Y + 0.002, C.elev));
-const q = T / 2, ts = T - 0.55;
+// same edge padding and tile gap as the data layer (tile 2.7 on pitch 3)
+const GAP = PITCH - 2.7, PAD = T - (PITCH + 1.35);
+const ts = T - PAD - GAP / 2, q = GAP / 2 + ts / 2;
 for (const [x, z, lines] of [[-q, -q, ["MCP", "SERVER"]], [-q, q, ["AIVEN", "RUNTIME"]], [q, -q, ["OBSERVABILITY"]]]) {
   outlinedTile(top, x, z, ts, TOP_Y, C.card, C.green, 0.045);
   top.add(anchor(textSprite(lines, hex(C.green), { size: lines[0].length > 9 ? 60 : 74 }), x, TOP_Y + 0.1, z));
