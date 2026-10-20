@@ -143,7 +143,7 @@ function logoSprite(kind) {
     g.beginPath(); g.arc(cx - 238, cy, 18, 0, 7); g.fill();
     g.textAlign = "left"; g.font = sans(92, 500); g.fillText("DigitalOcean", cx - 170, cy);
   }
-  return spriteFrom(c, 3.5, 3.5 * ch / cw);
+  return spriteFrom(c, 2.9, 2.9 * ch / cw);
 }
 
 // ---------- layers ----------
