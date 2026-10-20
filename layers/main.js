@@ -14,7 +14,7 @@ const MONO = '"Geist Mono", ui-monospace, Menlo, monospace';
 
 const PITCH = 3;          // data grid pitch
 const DATA_L = 9.9;       // data slab side
-const TOP_L = 9.1;        // runtime slab side
+const TOP_L = DATA_L;   // runtime slab side, same footprint as the other layers
 const TOP_Y = 3.0;        // runtime slab surface height
 const DROP_Y = -3.7;      // cloud tiles height
 const ELEV = 23 * Math.PI / 180;
@@ -185,8 +185,8 @@ world.add(top);
 const T = TOP_L / 2, w0 = 0.09;
 const LSHAPE = (t) => [[-t, -t], [t, -t], [t, 0], [0, 0], [0, t], [-t, t]];
 const LINSET = (t, w) => [[-t + w, -t + w], [t - w, -t + w], [t - w, w], [w, w], [w, t - w], [-t + w, t - w]];
-top.add(slab(LSHAPE(T), 0.2, TOP_Y, 0.42, C.borderStrong, 0x1e2536, 0.04));
-top.add(flat(LINSET(T, w0), 0.12, TOP_Y + 0.002, C.elev));
+top.add(slab(LSHAPE(T), 0.45, TOP_Y, 0.42, C.borderStrong, 0x1e2536, 0.04));
+top.add(flat(LINSET(T, w0), 0.4, TOP_Y + 0.002, C.elev));
 const q = T / 2, ts = T - 0.55;
 for (const [x, z, lines] of [[-q, -q, ["MCP", "SERVER"]], [-q, q, ["AIVEN", "RUNTIME"]], [q, -q, ["OBSERVABILITY"]]]) {
   outlinedTile(top, x, z, ts, TOP_Y, C.card, C.green, 0.045);
