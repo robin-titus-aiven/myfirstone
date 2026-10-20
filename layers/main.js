@@ -12,6 +12,7 @@ const C = {
 const hex = (n) => "#" + n.toString(16).padStart(6, "0");
 const MONO = '"Geist Mono", ui-monospace, Menlo, monospace';
 
+const LABEL = 64;         // one label size for every layer
 const PITCH = 3;          // data grid pitch
 const DATA_L = 9.9;       // data slab side
 const TOP_L = DATA_L;   // runtime slab side, same footprint as the other layers
@@ -176,7 +177,7 @@ for (const [i, j, name, col] of SERVICES) {
   const [x, z] = cell(i, j);
   if (!name) { outlinedTile(data, x, z, 2.7, 0, C.elev, C.border, 0.03); continue; }
   outlinedTile(data, x, z, 2.7, 0, C.card, col);
-  data.add(anchor(textSprite([name], hex(col), { size: name.length > 8 ? 62 : 72 }), x, 0.06, z));
+  data.add(anchor(textSprite([name], hex(col), { size: LABEL }), x, 0.06, z));
 }
 
 // runtime layer: Aiven Green
@@ -192,7 +193,7 @@ const GAP = PITCH - 2.7, PAD = T - (PITCH + 1.35);
 const ts = T - PAD - GAP / 2, q = GAP / 2 + ts / 2;
 for (const [x, z, lines] of [[-q, -q, ["MCP", "SERVER"]], [-q, q, ["AIVEN", "RUNTIME"]], [q, -q, ["OBSERVABILITY"]]]) {
   outlinedTile(top, x, z, ts, TOP_Y, C.card, C.green, 0.045);
-  top.add(anchor(textSprite(lines, hex(C.green), { size: lines[0].length > 9 ? 60 : 74 }), x, TOP_Y + 0.1, z));
+  top.add(anchor(textSprite(lines, hex(C.green), { size: LABEL }), x, TOP_Y + 0.1, z));
 }
 
 // ---------- controls: distance between layers ----------
