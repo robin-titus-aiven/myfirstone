@@ -16,7 +16,7 @@ const PITCH = 3;          // data grid pitch
 const DATA_L = 9.9;       // data slab side
 const TOP_L = 9.1;        // runtime slab side
 const TOP_Y = 3.0;        // runtime slab surface height
-const DROP_Y = -2.9;      // cloud tiles height
+const DROP_Y = -3.7;      // cloud tiles height
 const ELEV = 23 * Math.PI / 180;
 
 // ---------- renderer / camera ----------
@@ -150,14 +150,15 @@ const world = new THREE.Group();
 scene.add(world);
 const cell = (i, j) => [(i - 1) * PITCH, -(j - 1) * PITCH];  // +x = down-right on screen, -z = up-right
 
-// cloud tiles: neutral, quiet
+// cloud layer: a big slab of the same thickness, carrying neutral provider tiles
 const cloud = new THREE.Group();
 world.add(cloud);
+cloud.add(slab(rect(0, 0, DATA_L, DATA_L), 0.45, DROP_Y, 0.42, C.elev, 0x1e2536, 0.04));
+cloud.add(ring(rect(0, 0, DATA_L, DATA_L), rect(0, 0, DATA_L - 0.09, DATA_L - 0.09), 0.45, DROP_Y + 0.002, C.borderStrong));
 for (const [i, j, k] of [[0, 0, "aws"], [1, 0, "google"], [2, 0, "azure"], [2, 1, "oracle"], [2, 2, "do"]]) {
   const [x, z] = cell(i, j);
-  cloud.add(slab(rect(x, z, 2.7, 2.7), 0.12, DROP_Y, 0.1, C.card, C.elev, 0.012));
-  cloud.add(ring(rect(x, z, 2.7, 2.7), rect(x, z, 2.62, 2.62), 0.12, DROP_Y + 0.002, C.border));
-  cloud.add(anchor(logoSprite(k), x, DROP_Y + 0.1, z));
+  outlinedTile(cloud, x, z, 2.7, DROP_Y, C.card, C.borderStrong, 0.03);
+  cloud.add(anchor(logoSprite(k), x, DROP_Y + 0.06, z));
 }
 
 // data layer: each service takes its assigned product colour
@@ -213,14 +214,14 @@ function place() {
   const sway = userT > 0 ? 0 : Math.sin(performance.now() / 2600) * 0.07;
   const a = az + sway;
   camera.position.set(Math.sin(a) * Math.cos(ELEV) * camDist, Math.sin(ELEV) * camDist, Math.cos(a) * Math.cos(ELEV) * camDist);
-  camera.lookAt(0, -0.1 + ((gapTop - TOP_Y) + (-gapBottom - DROP_Y)) / 2, 0);
+  camera.lookAt(0, -0.45 + ((gapTop - TOP_Y) + (-gapBottom - DROP_Y)) / 2, 0);
 }
 
 function resize() {
   const w = innerWidth, hgt = innerHeight;
   renderer.setSize(w, hgt, false);
   const spread = Math.max(0, gapTop - TOP_Y) + Math.max(0, gapBottom + DROP_Y);
-  const viewH = 14.2 + spread * 0.95, viewW = 18.0 + spread * 0.2;
+  const viewH = 15.6 + spread * 0.95, viewW = 19.0 + spread * 0.2;
   const asp = w / hgt;
   let vh = viewH, vw = viewH * asp;
   if (vw < viewW) { vw = viewW; vh = viewW / asp; }

@@ -39,8 +39,8 @@ writeFileSync(join(HERE, "layers.html"), `<!doctype html>
 <div class="panel"><h2>Layer spacing</h2>
   <div class="row"><span>Runtime ↔ Data</span><b id="gap-top-v">3.0</b></div>
   <input id="gap-top" type="range" min="0.6" max="7" step="0.1" value="3">
-  <div class="row"><span>Data ↔ Cloud</span><b id="gap-bottom-v">2.9</b></div>
-  <input id="gap-bottom" type="range" min="0.6" max="7" step="0.1" value="2.9">
+  <div class="row"><span>Data ↔ Cloud</span><b id="gap-bottom-v">3.7</b></div>
+  <input id="gap-bottom" type="range" min="0.6" max="8" step="0.1" value="3.7">
   <button id="reset">Reset</button></div><div class="hint">drag to rotate · double-click to reset</div>
 <script type="module">${js}</script></body></html>
 `);
