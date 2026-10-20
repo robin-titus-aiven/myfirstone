@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 
 await document.fonts.load('400 40px "Geist Mono"').catch(() => {});
 
@@ -85,6 +88,7 @@ function outlinedTile(parent, cx, cz, size, y, fill, line, w = 0.05) {
 }
 
 const sprites = [];
+const lineMats = [];   // flow streak materials, kept in sync with the canvas size
 function anchor(s, x, y, z, lift = 0.6) {
   s.userData = { p: new THREE.Vector3(x, y, z), lift };
   sprites.push(s);
@@ -224,6 +228,7 @@ function place() {
 function resize() {
   const w = innerWidth, hgt = innerHeight;
   renderer.setSize(w, hgt, false);
+  for (const m of lineMats) m.resolution.set(w, hgt);
   const spread = Math.max(0, gapTop - TOP_Y) + Math.max(0, gapBottom + DROP_Y);
   const viewH = 15.6 + spread * 0.95, viewW = 19.0 + spread * 0.2;
   const asp = w / hgt;
@@ -241,12 +246,32 @@ canvas.addEventListener("pointerup", () => { drag = null; });
 canvas.addEventListener("dblclick", () => { az = baseAz; userT = 0; });
 
 // ---------- data flow ----------
-// Vertical channels link each cloud tile to its service, and each service to the runtime tile(s)
-// above it. Dashed guides stay neutral; packets carry the service colour going up and Aiven Green
-// coming down. Everything is drawn x-ray (no depth test) beneath the labels.
+// Neutral dashed guides link tiles; short streaks travel along them. Vertical channels join each
+// cloud tile to its service and each service to the runtime tile(s) above it (service colour going
+// up, Aiven Green coming down). Horizontal channels join neighbouring services on the data layer,
+// in the source service's colour. Drawn x-ray (no depth test), beneath the labels.
 const flow = new THREE.Group();
 scene.add(flow);
 const FLOW_T = 4.6;                       // seconds per cycle
+const STREAK = 0.5, STREAK_PX = 2.5;      // streak length (world) and thickness (px)
+const unit = new LineGeometry().setPositions([0, 0, 0, 1, 0, 0]);
+function streak(color) {
+  const m = new LineMaterial({ color, linewidth: STREAK_PX, depthTest: false, depthWrite: false, transparent: true });
+  m.resolution.set(innerWidth, innerHeight);
+  lineMats.push(m);
+  const l = new Line2(unit, m);
+  l.renderOrder = 2;
+  l.visible = false;
+  flow.add(l);
+  return l;
+}
+function dot(color) {
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color, depthTest: false, depthWrite: false, transparent: true }));
+  m.renderOrder = 1;
+  m.scale.setScalar(0.1);
+  flow.add(m);
+  return m;
+}
 const dotTex = (() => {
   const c = document.createElement("canvas");
   c.width = c.height = 64;
@@ -257,30 +282,25 @@ const dotTex = (() => {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 })();
-function dot(color, order) {
-  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color, depthTest: false, depthWrite: false, transparent: true }));
-  m.renderOrder = order;
-  flow.add(m);
-  return m;
-}
+
 const named = SERVICES.filter((r) => r[2]);
+const byCell = Object.fromEntries(named.map((r) => [r[0] + "," + r[1], r]));
 const channels = [];
-function channel(x, z, lower, upper, color, phase, both) {
+// a, b: (out: Vector3) => void filling the end points each frame (layer gaps are live)
+function channel(a, b, color, phase, back) {
   const guide = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
     new THREE.LineDashedMaterial({ color: C.borderStrong, dashSize: 0.14, gapSize: 0.14, depthTest: false }));
   guide.renderOrder = 1;
   flow.add(guide);
-  channels.push({
-    x, z, lower, upper, guide, phase, both,
-    ends: [dot(C.borderStrong, 1), dot(C.borderStrong, 1)],
-    up: dot(color, 2), down: both ? dot(C.green, 2) : null,
-  });
+  channels.push({ a, b, guide, phase, ends: [dot(C.borderStrong), dot(C.borderStrong)], fwd: streak(color), back: back ? streak(C.green) : null });
 }
-// cloud -> service (same grid cell)
+const vert = (x, z, yLo, yHi) => [(o) => o.set(x, yLo(), z), (o) => o.set(x, yHi(), z)];
+
+// cloud -> service (the five cells that have a provider tile)
 named.forEach(([i, j, , col], n) => {
-  if (!(j === 0 || i === 2)) return;                     // the five cells that have a provider tile
+  if (!(j === 0 || i === 2)) return;
   const [x, z] = cell(i, j);
-  channel(x, z, () => -gapBottom + 0.08, () => 0.08, col, n / 7, false);
+  channel(...vert(x, z, () => -gapBottom + 0.08, () => 0.08), col, n / 7, false);
 });
 // service -> runtime tile (centre of the overlap of their footprints)
 const RT = [[-q, -q], [-q, q], [q, -q]];
@@ -289,29 +309,43 @@ named.forEach(([i, j, , col], n) => {
   for (const [rx, rz] of RT) {
     const x0 = Math.max(cx - 1.35, rx - ts / 2), x1 = Math.min(cx + 1.35, rx + ts / 2);
     const z0 = Math.max(cz - 1.35, rz - ts / 2), z1 = Math.min(cz + 1.35, rz + ts / 2);
-    if (x1 - x0 > 0.5 && z1 - z0 > 0.5) channel((x0 + x1) / 2, (z0 + z1) / 2, () => 0.08, () => gapTop + 0.1, col, (n + 3) / 7, true);
+    if (x1 - x0 > 0.5 && z1 - z0 > 0.5) channel(...vert((x0 + x1) / 2, (z0 + z1) / 2, () => 0.08, () => gapTop + 0.1), col, (n + 3) / 7, true);
   }
 });
+// service -> neighbouring service on the data layer
+const LINKS = [[2, 0, 1, 0], [1, 0, 0, 0], [1, 0, 1, 1], [1, 1, 2, 1], [2, 0, 2, 1], [2, 1, 2, 2]];   // [from i,j, to i,j]
+LINKS.forEach(([fi, fj, ti, tj], n) => {
+  const [fx, fz] = cell(fi, fj), [tx, tz] = cell(ti, tj);
+  const dx = Math.sign(tx - fx), dz = Math.sign(tz - fz);
+  const [lo, hi] = [0.9, PITCH - 0.9];
+  channel((o) => o.set(fx + dx * lo, 0.1, fz + dz * lo), (o) => o.set(fx + dx * hi, 0.1, fz + dz * hi), byCell[fi + "," + fj][3], (n * 1.7) / 7 + 0.13, false);
+});
+
 const smooth = (u) => u * u * (3 - 2 * u);
 const pop = (u) => smooth(Math.min(1, u * 6, (1 - u) * 6));   // grow in, shrink out
-function packet(sp, u, y0, y1, x, z) {
-  if (u < 0 || u > 1) { sp.visible = false; return; }
-  const e = smooth(u), k = pop(u);
-  sp.visible = k > 0.01;
-  sp.position.set(x, y0 + (y1 - y0) * e, z);
-  sp.scale.setScalar(0.17 * k);
+const A = new THREE.Vector3(), B = new THREE.Vector3(), D = new THREE.Vector3(), P = new THREE.Vector3(), X = new THREE.Vector3(1, 0, 0);
+function runStreak(l, u, from, to) {
+  if (u < 0 || u > 1) { l.visible = false; return; }
+  const k = pop(u), len = STREAK * k;
+  l.visible = len > 0.02;
+  D.subVectors(to, from);
+  const span = D.length();
+  D.divideScalar(span);
+  P.copy(from).addScaledVector(D, span * smooth(u)).addScaledVector(D, -len / 2);
+  l.position.copy(P);
+  l.quaternion.setFromUnitVectors(X, D);
+  l.scale.set(len, 1, 1);
 }
 function updateFlow(sec) {
   for (const c of channels) {
-    const a = c.lower(), b = c.upper();
+    c.a(A); c.b(B);
     const pos = c.guide.geometry.attributes.position;
-    pos.setXYZ(0, c.x, a, c.z); pos.setXYZ(1, c.x, b, c.z); pos.needsUpdate = true;
+    pos.setXYZ(0, A.x, A.y, A.z); pos.setXYZ(1, B.x, B.y, B.z); pos.needsUpdate = true;
     c.guide.computeLineDistances();
-    c.ends[0].position.set(c.x, a, c.z); c.ends[1].position.set(c.x, b, c.z);
-    for (const e of c.ends) e.scale.setScalar(0.12);
+    c.ends[0].position.copy(A); c.ends[1].position.copy(B);
     const ph = (sec / FLOW_T + c.phase) % 1;
-    packet(c.up, ph / 0.62, a, b, c.x, c.z);                       // rising: service colour
-    if (c.down) packet(c.down, ((ph + 0.5) % 1) / 0.62, b, a, c.x, c.z);   // falling: Aiven Green
+    runStreak(c.fwd, ph / 0.62, A, B);
+    if (c.back) runStreak(c.back, ((ph + 0.5) % 1) / 0.62, B, A);
   }
 }
 
