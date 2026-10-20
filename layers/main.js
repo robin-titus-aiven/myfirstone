@@ -252,7 +252,7 @@ canvas.addEventListener("dblclick", () => { az = baseAz; userT = 0; });
 // (no depth test), beneath the labels.
 const flow = new THREE.Group();
 scene.add(flow);
-const FLOW_GREY = 0x9aa1af;               // flow stays neutral so it never competes with the layers
+const FLOW_GREY = 0x68696b;               // flow stays neutral so it never competes with the layers
 const FLOW_T = 4.6;                       // seconds per cycle
 const HEAD = 0.13, TRAIL_PX = 1.5;       // dot size (world) and trail thickness (px)
 const TAIL = 1.7;                        // longest visible trace behind the dot (world)
